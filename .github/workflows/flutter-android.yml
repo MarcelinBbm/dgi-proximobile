@@ -1,0 +1,117 @@
+name: Flutter Android validation
+
+on:
+  push:
+    branches: ['feature/dgi-proximobile']
+    paths:
+      - 'mobile/**'
+      - 'scripts/bootstrap_android.sh'
+      - '.github/workflows/flutter-android.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+
+steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+- run: mkdir -p ci-logs
+
+- uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+- uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+- name: Record environment
+        run: |
+          set -euo pipefail
+          {
+            echo "Source commit: $GITHUB_SHA"
+            flutter --version
+            java -version
+            flutter doctor -v
+          } 2>&1 | tee ci-logs/environment.log
+
+- name: Prepare Android platform
+        run: |
+          set -euo pipefail
+          bash -n scripts/bootstrap_android.sh
+          bash scripts/bootstrap_android.sh 2>&1 | tee ci-logs/bootstrap.log
+          cat mobile/android/app/build.gradle* | tee ci-logs/android-gradle.log
+
+- name: Resolve dependencies
+        working-directory: mobile
+        run: |
+          set -euo pipefail
+          flutter pub get 2>&1 | tee ../ci-logs/pub-get.log
+
+- name: Analyze Dart
+        working-directory: mobile
+        run: |
+          set -euo pipefail
+          flutter analyze 2>&1 | tee ../ci-logs/analyze.log
+
+- name: Run tests
+        working-directory: mobile
+        run: |
+          set -euo pipefail
+          flutter test --reporter=json 2>&1 | tee ../ci-logs/tests.jsonl
+
+- name: Build DEMO debug APK
+        working-directory: mobile
+        run: |
+          set -euo pipefail
+          flutter build apk --debug --dart-define=APP_MODE=demo \
+            2>&1 | tee ../ci-logs/build-debug.log
+
+- name: Package APK and prepared project
+        run: |
+          set -euo pipefail
+          mkdir -p ci-artifacts
+          cp mobile/build/app/outputs/flutter-apk/app-debug.apk \
+            ci-artifacts/dgi-proximobile-demo-debug.apk
+          zip -rq ci-artifacts/dgi-proximobile-android-project.zip \
+            mobile scripts docs README.md .gitignore \
+            -x 'mobile/build/*' 'mobile/.dart_tool/*' \
+               'mobile/android/.gradle/*' 'mobile/android/local.properties' \
+               'mobile/.flutter-plugins*' 'mobile/android/key.properties' \
+               '*.jks' '*.keystore' '*.log'
+          (cd ci-artifacts && sha256sum *.apk *.zip > SHA256SUMS.txt)
+
+- name: Upload APK and project
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-demo-debug
+          path: ci-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+- name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-logs
+          path: ci-logs/
+          if-no-files-found: warn
+          retention-days: 14
