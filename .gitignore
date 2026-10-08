@@ -1,0 +1,58 @@
+# Secrets et configuration locale
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+**/key.properties
+**/local.properties
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Flutter / Dart
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/build/
+**/coverage/
+**/android/.gradle/
+**/android/captures/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/macos/Flutter/ephemeral/
+# Conserver pubspec.lock pour une application.
+
+# PHP / dépendances et fichiers opérationnels
+**/vendor/
+**/.phpunit.cache/
+**/.phpunit.result.cache
+**/storage/logs/
+**/storage/sessions/
+**/storage/uploads/
+*.log
+*.sql.gz
+*.sql.zip
+
+# IDE / système
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Artefacts de compilation : publier séparément après validation
+*.apk
+*.aab
+*.ipa
